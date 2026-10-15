@@ -206,6 +206,36 @@ describe("dataSubjectReuseAnnotations feature flag", () => {
     expect(role.reuseApplicationDataSubjectRoleName).toBeUndefined();
   });
 
+  test("Flag OFF: existing reuseApplicationName in mta.yaml is preserved (not cleaned up)", async () => {
+    const appRoot = await generateBuildProject(tempUtil, "app-reuse-preserve");
+    // Simulate a mta.yaml that already has a manually maintained reuseApplicationName
+    const mtaPath = path.join(appRoot, "mta.yaml");
+    const mta = cds.parse.yaml(fs.readFileSync(mtaPath, "utf-8"));
+    const retentionResource = mta.resources.find(
+      (r) =>
+        r.parameters?.service === "data-privacy-integration-service" &&
+        r.parameters?.config?.dataPrivacyConfiguration?.configType === "retention"
+    );
+    retentionResource.parameters.config.dataPrivacyConfiguration.retentionConfiguration.dataSubjectRoles =
+      [
+        {
+          dataSubjectRoleName: "Customer",
+          dataSubjectDescription: "Customer",
+          dataSubjectBaseURL: "~{srv-api/srv-url}",
+          dataSubjectBlockingEndPoint: "/dpp/retention/dataSubjectBlocking",
+          dataSubjectInformationEndPoint: "/dpp/retention/dataSubjectInformation",
+          dataSubjectsDestroyingEndPoint: "/dpp/retention/dataSubjectsDestroying",
+          reuseApplicationName: "ManuallyMaintainedApp"
+        }
+      ];
+    fs.writeFileSync(mtaPath, cds.compile.to.yaml(mta));
+    // Build with flag OFF (default) - must not touch reuseApplicationName
+    await _build(appRoot, buildTasks);
+    const retentionConfig = readMtaRetentionConfig(appRoot);
+    const role = retentionConfig.dataSubjectRoles[0];
+    expect(role.reuseApplicationName).toBe("ManuallyMaintainedApp");
+  });
+
   test("Flag ON + boolean true: endpoint fields absent, dataSubjectBaseURL present", async () => {
     const appRoot = await generateBuildProject(tempUtil, "app-reuse-bool");
     setRequires(appRoot, "sap.ilm.RetentionService", { dataSubjectReuseAnnotations: true });
