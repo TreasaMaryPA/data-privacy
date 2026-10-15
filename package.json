@@ -68,7 +68,7 @@
         "tableRestrictions": "srv",
         "maxProjectionDepth": 20,
         "deploymentDescriptor": "mta.yaml",
-        "extendedAnnotations": false
+        "dataSubjectReuseAnnotations": false
       },
       "sap.dpp.InformationService": {
         "external": false,
